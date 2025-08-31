@@ -1,0 +1,14 @@
+[project]
+name = "host-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "a2a-sdk",
+    "fastmcp",
+    "google-adk",
+    "google-genai",
+    "litellm==1.72.0",
+    "python-dotenv"
+]
