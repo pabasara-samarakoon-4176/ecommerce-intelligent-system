@@ -18,7 +18,7 @@ from a2a.types import (
 )
 import httpx
 
-AGENT_URL = os.getenv("AGENT_URL", "http://localhost:10000")
+AGENT_URL = os.getenv("AGENT_URL", "http://localhost:8084")
 
 def create_send_message_payload(
     text: str, task_id: str | None = None, context_id: str | None = None

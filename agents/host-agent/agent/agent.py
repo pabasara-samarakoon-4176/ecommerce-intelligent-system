@@ -127,7 +127,7 @@ def get_text_from_json_response(response: Any) -> str:
         print(f"Error extracting text from response: {e}")
         return ""
     
-async def call_agent(agent_name: str, message: str):
+async def call_agent(agent_name: str, task_description: str):
     """
     Given an agent_name string and a user message,
     find that agent's URL, send the task, and return its reply.
@@ -152,7 +152,7 @@ async def call_agent(agent_name: str, message: str):
             agent_card=target_card
         )
         print(f"Connected to A2AClient at: {target_card.url}")
-        send_message_payload = create_send_message_payload(text=message)
+        send_message_payload = create_send_message_payload(text=task_description)
         request = SendStreamingMessageRequest(
             id=str(uuid4()), params=send_message_payload
         )
@@ -166,17 +166,26 @@ async def call_agent(agent_name: str, message: str):
             logger.error(f"Error while calling agent '{agent_name}': {e}", exc_info=True)
             return "No response"
 
-async def main():
-    agent_name = "Price Scraper Agent"
-    query = "Check for the price of 'wireless headphones' in Amazon."
+# async def main():
+#     agent_name = "Stock Tracker Agent"
+#     query = "Check for the availability of the product `B0DGHMNQ5Z` in Amazon."
     
-    print(f"--- Calling agent '{agent_name}' with query: '{query}' ---")
-    response = await call_agent(agent_name, query)
-    print(f"--- ✅ Response from {agent_name}: ---")
-    print(get_text_from_json_response(response))
+#     print(f"--- Calling agent '{agent_name}' with query: '{query}' ---")
+#     response = await call_agent(agent_name, query)
+#     print(f"--- ✅ Response from {agent_name}: ---")
+#     print(get_text_from_json_response(response))
 
-if __name__ == "__main__":
-    asyncio.run(main())
+# if __name__ == "__main__":
+#     asyncio.run(main())
+
+# Ask Stock Tracker Agent to check for the availability of the product `B0DGHMNQ5Z`` in Amazon.
+
+system_instr = (
+    "You are a root orchestrator agent and you can ask various agent based on the user request. You have two tools:\n"
+    "1) list_agents() → Use this tool to see a list of all available agents and their capabilities.\n"
+    "2) call_agent(agent_name: str, message: str) → Use this tool to send a message to a specific agent by its name and get its response.\n"
+    "Use these tools to fulfill user requests by discovering and interacting with other agents as needed.\n"
+)
 
 system_prompt = """
 You are the **Host Agent**, a master orchestrator for a team of specialized
@@ -184,55 +193,48 @@ child agents. Your primary purpose is to receive user requests, understand user'
 ultimate goal, and delegate the necessary tasks to the appropriate child agent to 
 fulfill the request.
 
-## Your Core Directives
+You have the following agents at your disposal. You must use their `agent_name` when calling the `call_agent` tool.
 
-1.  **Remember and Reason**: Before acting, review the entire conversation history. The user's previous messages and your prior actions are your primary source of context. Use this context to understand the user's intent, even if it's implied across several turns.
-2.  **Deconstruct and Delegate**: Your main job is to use the `delegate_task_sync` tool. Analyze the user's request, informed by the conversation history, and formulate a clear, detailed `task_description` for the appropriate child agent.
-3.  **Act as an Orchestrator, Not a Doer**: You do not perform tasks like searching or converting text to speech yourself. You delegate these tasks to the experts. Your intelligence lies in choosing the right agent and giving it the right instructions.
-4.  **Synthesize and Respond**: After a child agent completes a task, you will receive its report. Synthesize this information into a helpful, user-friendly response. Do not just dump the raw output.
-5.  **Multi-Step Workflows**: For complex requests that require multiple agents (e.g., "find this in Notion and read it to me"), you must chain your delegations. First, delegate the search task to `notion_agent`. Once you have the result, delegate the text-to-speech task to `elevenlabs_agent`.
-
-## Your Team: The Child Agent Roster
-
-You have the following agents at your disposal. You must use their `agent_name` when calling the `delegate_task_sync` tool.
-
-### 1. `price_scraper_agent`
+### 1. `Price Scraper Agent`
 -   **Capabilities**: Can search Amazon for products and get their prices.
 -   **When to use**: If the user wants search and identify prices for certain products in Amazon.
 -   **Example `task_description`**:
     -   `"The user want to learn prices of `wireless headphones` in Amazon."`
     -   `"The user wants to learn average price of `wireless headphones` in Amazon."`
 
-### 2. `review_analyser_agent`
+### 2. `Review Analyser Agent`
 -   **Capabilities**: Retrieves customer reviews for a given Amazon product, analyzes them to identify common pros and cons, determines overall sentiment, and summarizes customer feedback trends.
 -   **When to use**: When the task involves understanding customer opinions, product quality feedback, or extracting sentiment insights from Amazon product reviews.
 -   **Example `task_description`**:
     -  "Analyze reviews for the Logitech MX Master 3 and summarize key pros and cons."
     -  "Find the sentiment for customer reviews of the Kindle Paperwhite."
 
-### 3. `stock_tracker_agent`
+### 3. `Stock Tracker Agent`
 -   **Capabilities**: Searches Amazon for a product and retrieves its current stock availability, including whether it is in stock, out of stock, or low in stock.
 -   **When to use**: When the task requires checking whether a product is available for purchase or monitoring inventory status.
 -   **Example `task_description`**:
     -  "Check if the Sony WH-1000XM5 headphones are currently in stock."
     -  "Find the stock status for the Apple MacBook Air M2."
 
-## Your Only Tool: `delegate_task_sync`
+## Your Only Tool: `call_agent`
 
 ```python
-delegate_task_sync(agent_name: str, task_description: str) -> str
+call_agent(agent_name: str, task_description: str)
 ```
 
--   `agent_name` (required): The name of the agent from the roster (`price_scraper_agent`, `review_analyser_agent` or `stock_tracker_agent`).
+-   `agent_name` (required): The name of the agent from the roster (`Price Scraper Agent`, `Review Analyser Agent` or `Stock Tracker Agent`).
 -   `task_description` (required): A clear, comprehensive, and standalone instruction for the child agent. While you have access to the full conversation history, the child agents do not. Therefore, you **must** provide all necessary context from our conversation in this description.
 """
 
-# agent = Agent(
-#     name="host_agent_orchestrator",
-#     description="A master orchestrator that delegates tasks to specialized child agents (price_scraper_agent, review_analyser_agent, stock_tracker_agent) using a generic A2A communication tool.",
-#     instruction=system_prompt,
-#     tools=[delegate_task_sync],
-#     model=LiteLlm(model=model_name)
-# )
+agent = LlmAgent(
+    name="host_agent_orchestrator",
+    description="A master orchestrator that delegates tasks to specialized child agents (Price Scraper Agent, Review Analyser Agent, Stock Tracker Agent) using a generic A2A communication tool.",
+    instruction=system_instr,
+    tools=[
+        # FunctionTool(list_agents),
+        FunctionTool(call_agent)
+    ],
+    model=LiteLlm(model=model_name)
+)
 
-# root_agent = agent
+root_agent = agent
